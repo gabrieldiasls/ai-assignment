@@ -1,0 +1,162 @@
+<html>
+  <head>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: rgb(207, 233, 255);
+        font-family: "Open Sans", sans-serif;
+      }
+
+      .results-wrapper {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        background-color: rgb(220, 220, 220);
+        color: black;
+        border: 2px solid black;
+        width: 640px;
+        height: auto;
+        margin-top: 2rem;
+        border-radius: 10px;
+      }
+
+      #results {
+        margin-bottom: 2rem;
+        text-align: center;
+      }
+
+      #results span {
+        margin: 5px 5px;
+      }
+
+      video {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        border: 2px solid black;
+        border-radius: 10px;
+      }
+
+      h1 {
+        text-align: center;
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+      }
+
+      button {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        margin-top: 2rem;
+        font-size: 1rem;
+        background-color: black;
+        color: white;
+        border-radius: 10px;
+        text-transform: uppercase;
+      }
+
+      p {
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+
+      h2 {
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Basic Cloud Vision (Google) Demo -->
+    <h1>Create a to-do list with your camera</h1>
+    <p>
+      Point a text to the camera and you will get a to-do list on the bottom of
+      the page.
+    </p>
+    <video autoplay="true" id="videoElement"></video>
+    <button id="vision_button">Analyze</button>
+    <div class="results-wrapper">
+      <h2>List</h2>
+      <div id="results"></div>
+    </div>
+
+    <script>
+      // Access camera
+      var video = document.querySelector("#videoElement");
+      if (navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices
+          .getUserMedia({ video: true })
+          .then(function (stream) {
+            video.srcObject = stream;
+          })
+          .catch(function (err) {
+            console.log("Something went wrong!");
+          });
+      }
+
+      // We only get to work when the vision button is clicked
+      document
+        .querySelector("#vision_button")
+        .addEventListener("click", (evt) => {
+          // extract image as base64, scale it down to reduce data transfer speed
+          var scale = 0.25;
+          var canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth * scale;
+          canvas.height = video.videoHeight * scale;
+          canvas
+            .getContext("2d")
+            .drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          // dataUrl contains base64 version of image
+          var dataUrl = canvas.toDataURL();
+
+          // Send image to google to analyze
+          // Documentation of the annotate feature: https://cloud.google.com/vision/docs/reference/rest/v1/images/annotate
+          fetch(
+            "https://vision.googleapis.com/v1/images:annotate?key=AIzaSyBBeqeMKsKlBofV7xKJlGMH-3QEZmTnYRQ",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                requests: [
+                  {
+                    features: {
+                      type: "TEXT_DETECTION",
+                    },
+                    image: {
+                      // have to extract only the image data from dataURL
+                      content: dataUrl.substring(
+                        "data:image/png;base64,".length
+                      ),
+                    },
+                  },
+                ],
+              }),
+            }
+          )
+            .then((resp) => {
+              return resp.json();
+            })
+            .then((json) => {
+              // Simply output the response
+              console.log(json);
+              results.innerHTML = "";
+              let textImage = json.responses[0].fullTextAnnotation.text;
+              console.log(textImage);
+
+              let description = document.createElement("span");
+              let div = document.createElement("div");
+              description.innerText = textImage;
+              div.append(description);
+              results.append(div);
+            });
+        });
+    </script>
+  </body>
+</html>
